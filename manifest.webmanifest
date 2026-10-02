@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "電池熱 RC 實驗室",
+  "short_name": "電池熱 RC",
+  "lang": "zh-Hant-TW",
+  "start_url": "./?launch=rc-logo-v1",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#12354b",
+  "background_color": "#f0f5f7",
+  "icons": [
+    {
+      "src": "./rc-logo-192-v1.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./rc-logo-512-v1.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

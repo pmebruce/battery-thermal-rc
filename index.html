@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12354b">
+  <meta name="description" content="由重量與比熱估算熱容，匯入實測溫度並擬合電池一階熱 RC。">
+  <title>電池熱 RC 實驗室</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="./rc-logo-192-v1.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./rc-logo-180-v1.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="電池熱 RC">
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img class="brand-logo" src="./rc-logo-192-v1.png" alt="" width="36" height="36"><span>電池熱 RC 實驗室</span></div>
+    <div class="top-note">溫度曲線 × 物理熱容</div>
+  </header>
+  <main>
+    <section class="workspace-head">
+      <div><h1>熱容初估與實測擬合</h1><p>先用重量與比熱定出合理範圍，再檢查一階模型能否重現量測曲線。</p></div>
+      <label class="scope-field">模型層級 <select id="scope"><option value="cell" selected>Cell</option><option value="module">Module</option><option value="cabinet">Cabinet</option></select></label>
+    </section>
+    <div class="layout">
+      <div class="controls">
+        <section class="panel" aria-labelledby="bom-heading">
+          <div class="panel-header"><div><span class="eyebrow">01 / 物理初值</span><h2 id="bom-heading">熱容清單</h2></div><button class="text-button" id="add-part" type="button">新增材料</button></div>
+          <div class="grid-three cell-row">
+            <label>Cell 數量<input id="cell-count" type="number" min="1" step="1" value="1"></label>
+            <label>單顆重量 <small>kg</small><input id="cell-mass" type="number" min="0" step="any" value="2.1"></label>
+            <label>Cell 比熱 <small>J/(kg·K)</small><input id="cell-cp" type="number" min="0" step="any" value="1000"></label>
+          </div>
+          <div class="part-head"><span>其他固體材料</span><span>重量 kg</span><span>比熱 J/(kg·K)</span><span></span></div>
+          <div id="parts"></div>
+          <div class="bom-result"><span>已列材料總熱容</span><strong id="bom-total">—</strong></div>
+          <p class="hint">僅加總已列材料。若量測點與材料不會同步升溫，擬合值不應直接等同這個總和。</p>
+        </section>
+
+        <section class="panel" aria-labelledby="data-heading">
+          <div class="panel-header"><div><span class="eyebrow">02 / 測試輸入</span><h2 id="data-heading">溫度與發熱資料</h2></div><button class="text-button" id="sample" type="button">載入示範資料</button></div>
+          <div class="file-line"><label class="file-button" for="csv-file">選擇 CSV 檔</label><input id="csv-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values"><span id="file-name">或直接在下方貼上資料</span></div>
+          <label class="full-label" for="data-text">資料表 <small>第一列為欄名；逗號、Tab、分號分隔</small></label>
+          <textarea id="data-text" spellcheck="false" placeholder="time_s,temp_C,heat_W,ambient_C&#10;0,25,50,25&#10;60,26.3,50,25&#10;..." rows="6"></textarea>
+          <div class="map-grid">
+            <label>時間欄位<select id="map-time"></select></label><label>量測溫度欄位<select id="map-temp"></select></label>
+            <label>發熱功率欄位<select id="map-heat"></select></label><label>環境／入口溫度欄位<select id="map-ambient"></select></label>
+          </div>
+          <div class="fallback-grid">
+            <label>若無功率欄：淨發熱功率 <small>W</small><input id="heat-constant" type="number" step="any" value="50"></label>
+            <label>開始 <small>s</small><input id="heat-start" type="number" min="0" step="any" value="0"></label>
+            <label>停止 <small>s</small><input id="heat-stop" type="number" min="0" step="any" value="3700"></label>
+            <label>若無環境欄：固定溫度 <small>°C</small><input id="ambient-constant" type="number" step="any" value="20"></label>
+          </div>
+          <p class="hint">heat_W 是淨發熱功率（可為負），不是充放電電功率。無此欄時使用上方的固定功率區間。</p>
+          <div class="data-actions"><button id="fit-button" class="primary-button" type="button">擬合實測曲線</button><span id="data-count" aria-live="polite"></span></div>
+          <p class="error" id="error" role="alert" hidden></p>
+        </section>
+      </div>
+
+      <div class="results">
+        <section class="panel result-panel" aria-labelledby="result-heading">
+          <div class="panel-header"><div><span class="eyebrow">03 / 擬合結果</span><h2 id="result-heading">一階熱 RC</h2></div><span id="status-pill" class="status-pill">示範資料</span></div>
+          <div class="metrics"><div class="metric"><span>等效熱阻 R<sub>th</sub></span><strong id="r-value">—</strong><small>K/W</small></div><div class="metric"><span>等效熱容 C<sub>th</sub></span><strong id="c-value">—</strong><small>J/K</small></div><div class="metric"><span>時間常數 τ</span><strong id="tau-value">—</strong><small>min</small></div></div>
+          <div class="chart-top"><h3>溫度響應</h3><div class="legend"><span><i class="dot measured"></i>實測</span><span><i class="dot model"></i>模型</span></div></div>
+          <div class="chart-wrap"><svg id="chart" viewBox="0 0 720 330" preserveAspectRatio="xMidYMid meet" role="img" aria-label="實測與一階熱 RC 預測溫度隨時間變化"></svg></div>
+          <div class="fit-stats"><div><span>平均絕對誤差</span><strong id="mae">—</strong></div><div><span>最大誤差</span><strong id="max-error">—</strong></div><div><span>資料點數</span><strong id="point-count">—</strong></div></div>
+          <div id="assessment" class="assessment"></div>
+        </section>
+        <section class="panel notes-panel"><span class="eyebrow">判讀方式</span><div id="scope-note"></div><p>一階式：<span class="formula">C<sub>th</sub> dT/dt = P(t) − (T − T<sub>amb</sub>)/R<sub>th</sub></span>。擬合的是測點在當次冷卻條件下的等效響應；不同風量、流量與量測位置應分別驗證。</p></section>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
